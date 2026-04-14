@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --background: #f5f1ea;
+  --foreground: #122033;
+  --surface: #fffdf8;
+  --surface-muted: #ede6db;
+  --border: #d6c8b5;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-montserrat);
+
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+
+  --color-byuh-crimson: #ba0c2f;
+  --color-byuh-burgundy: #9e1b34;
+  --color-byuh-gold: #946f0a;
+  --color-byuh-navy: #002e5d;
+}
+
+@layer utilities {
+  .bg-byuh-crimson {
+    background-color: #ba0c2f;
+  }
+
+  .bg-byuh-burgundy {
+    background-color: #9e1b34;
+  }
+
+  .bg-byuh-gold {
+    background-color: #946f0a;
+  }
+
+  .bg-byuh-navy {
+    background-color: #002e5d;
+  }
+
+  .text-byuh-crimson {
+    color: #ba0c2f;
+  }
+
+  .text-byuh-burgundy {
+    color: #9e1b34;
+  }
+
+  .text-byuh-gold {
+    color: #946f0a;
+  }
+
+  .text-byuh-navy {
+    color: #002e5d;
+  }
+
+  .border-byuh-crimson {
+    border-color: #ba0c2f;
+  }
+
+  .border-byuh-burgundy {
+    border-color: #9e1b34;
+  }
+
+  .shadow-byuh-crimson\/15 {
+    --tw-shadow-color: rgb(186 12 47 / 0.15);
+  }
+
+  .shadow-byuh-burgundy\/10 {
+    --tw-shadow-color: rgb(158 27 52 / 0.1);
+  }
+
+  .hover\:bg-byuh-burgundy:hover {
+    background-color: #9e1b34;
+  }
+
+  .hover\:border-byuh-burgundy:hover {
+    border-color: #9e1b34;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    radial-gradient(circle at top, rgba(148, 111, 10, 0.18), transparent 32%),
+    linear-gradient(180deg, #f8f4ed 0%, #f3ede2 100%);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(186, 12, 47, 0.18);
+}
+
+.prose {
+  --tw-prose-body: #24364f;
+  --tw-prose-headings: #002e5d;
+  --tw-prose-links: #946f0a;
+  --tw-prose-bold: #002e5d;
+  --tw-prose-bullets: #946f0a;
+  --tw-prose-quotes: #24364f;
+  --tw-prose-quote-borders: rgba(148, 111, 10, 0.35);
+  --tw-prose-code: #9e1b34;
+  --tw-prose-pre-code: #fdf7ec;
+  --tw-prose-pre-bg: #002e5d;
+  --tw-prose-hr: rgba(0, 46, 93, 0.12);
+}
+
+.prose a {
+  color: #946f0a;
+}
+
+.prose code {
+  color: #9e1b34;
+}
+
+.prose :where(p, li, blockquote) {
+  overflow-wrap: anywhere;
+}
+
+.prose pre {
+  border-radius: 1rem;
+}
+
+.prose code::before,
+.prose code::after {
+  content: "";
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 46, 93, 0.25) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 46, 93, 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}

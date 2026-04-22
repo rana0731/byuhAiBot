@@ -9,8 +9,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "BYUH Admissions Assistant",
-  description: "Chat with the BYU-Hawaii admissions assistant.",
+  title: "BYUH AI Chatbot",
+  description: "Official BYU-Hawaii AI chatbot experience.",
 };
 
 export default function RootLayout({

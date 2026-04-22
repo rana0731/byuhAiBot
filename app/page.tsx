@@ -15,10 +15,10 @@ type ConversationSummary = {
 };
 
 const SUGGESTIONS = [
-  'What are the admission requirements for BYU-Hawaii?',
   'How do I apply as an international student?',
+  'How do I connect to campus WiFi?',
   'What documents do I need to submit?',
-  'Tell me about tuition and scholarships.',
+  'How do I create an IT support ticket?',
 ];
 
 function getMessageText(message: UIMessage) {
@@ -279,7 +279,7 @@ export default function Home() {
             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-byuh-gold">
               BYUH
             </p>
-            <h2 className="text-lg font-semibold text-white">Admissions Chats</h2>
+            <h2 className="text-lg font-semibold text-white">BYUH AI Chatbot</h2>
           </div>
           <button
             type="button"
@@ -397,9 +397,9 @@ export default function Home() {
                 BYUH
               </div>
               <div>
-                <h1 className="text-lg font-semibold">Admissions Assistant</h1>
+                <h1 className="text-lg font-semibold">BYUH AI Chatbot</h1>
                 <p className="text-sm text-white/80">
-                  Ask about applications, requirements, deadlines, and next steps.
+                  Ask about admissions, OIT, and other BYU-Hawaii information.
                 </p>
               </div>
             </div>
@@ -427,12 +427,12 @@ export default function Home() {
                       Welcome
                     </p>
                     <h2 className="mt-3 text-3xl font-semibold text-byuh-crimson sm:text-4xl">
-                      Explore admissions with a guided BYU-Hawaii chat.
+                      Welcome to the BYUH AI Chatbot.
                     </h2>
                     <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
-                      Ask about requirements, transfer credit, documents, deadlines, or
-                      scholarships. The assistant will respond using your admissions knowledge
-                      base.
+                      Ask about admissions, campus technology, student resources, and other
+                      BYU-Hawaii topics. The assistant will respond using the knowledge base you
+                      have scraped.
                     </p>
 
                     <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
@@ -508,7 +508,7 @@ export default function Home() {
           <div className="border-t border-border/80 bg-[#f8f4ed]/90 px-4 py-4 backdrop-blur sm:px-6">
             <form onSubmit={handleSubmit} className="mx-auto flex w-full max-w-4xl gap-3">
               <label htmlFor="chat-input" className="sr-only">
-                Ask the admissions assistant
+                Ask the BYUH AI Chatbot
               </label>
               <div className="flex-1 rounded-[1.75rem] border border-border bg-white p-2 shadow-lg shadow-slate-900/5">
                 <textarea
@@ -516,7 +516,7 @@ export default function Home() {
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   rows={1}
-                  placeholder="Ask about BYU-Hawaii admissions..."
+                  placeholder="Ask the BYUH AI Chatbot anything about BYU-Hawaii..."
                   disabled={loadingConversations || isLoadingResponse}
                   className="max-h-40 min-h-12 w-full resize-y border-0 bg-transparent px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60"
                 />

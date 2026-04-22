@@ -12,6 +12,12 @@ const EMBEDDING_MODEL = 'openai/text-embedding-3-small';
 const CHAT_MODEL = 'openai/gpt-4o-mini';
 const TOP_K = 5;
 
+function getSourceLabel(url: string) {
+  if (url.includes('oit.byuh.edu')) return 'OIT website';
+  if (url.includes('admissions.byuh.edu')) return 'Admissions website';
+  return 'BYU-Hawaii website';
+}
+
 export async function POST(req: Request) {
   const { messages: clientMessages, conversationId } = await req.json();
 
@@ -53,6 +59,12 @@ export async function POST(req: Request) {
   const context = relevantChunks
     .map((chunk) => `[${chunk.title ?? chunk.url}]\n${chunk.content}`)
     .join('\n\n---\n\n');
+  const availableSources = [...new Map(
+    relevantChunks.map((chunk) => [
+      chunk.url,
+      `- ${getSourceLabel(chunk.url)}: ${chunk.url}`,
+    ]),
+  ).values()].join('\n');
 
   let convId: string = conversationId;
 
@@ -77,9 +89,16 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: gateway(CHAT_MODEL),
-    system: `You are a helpful admissions assistant for BYU-Hawaii.
+    system: `You are a helpful BYU-Hawaii assistant.
 Answer questions using only the context below.
-If the answer is not covered, say so honestly and suggest the student contact the admissions office.
+If the answer is not covered, say so honestly and suggest the student contact the relevant BYU-Hawaii office.
+Always end your answer with a markdown section titled "Sources".
+In that section, list the most relevant source URLs you used from the allowed sources below, preserving the website label.
+Do not invent or change source URLs, and do not cite sources outside the allowed list.
+
+<allowed-sources>
+${availableSources}
+</allowed-sources>
 
 <context>
 ${context}

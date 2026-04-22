@@ -1,5 +1,5 @@
 {
-  "name": "byuh-admissions-bot",
+  "name": "byuh-ai-chatbot",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "ingest": "tsx scripts/ingest.ts",
+    "ingest:oit": "tsx scripts/ingest.ts https://oit.byuh.edu/",
     "embed": "tsx scripts/embed.ts"
   },
   "dependencies": {

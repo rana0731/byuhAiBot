@@ -9,10 +9,13 @@ const { documents, chunks } = schema;
 
 const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }), { schema });
 
-const BASE_URL = 'https://admissions.byuh.edu';
+const DEFAULT_BASE_URL = 'https://admissions.byuh.edu';
 const CHUNK_SIZE = 1000; // characters per chunk
 const CHUNK_OVERLAP = 200;
 const CONCURRENCY = 3;
+const baseUrlInput = process.argv[2] || process.env.SCRAPE_BASE_URL || DEFAULT_BASE_URL;
+const BASE_URL = new URL(baseUrlInput).href.replace(/\/$/, '');
+const BASE_HOSTNAME = new URL(BASE_URL).hostname;
 
 // ── Text chunking ─────────────────────────────────────────────────────────────
 
@@ -62,7 +65,7 @@ function extractLinks(html: string, pageUrl: string): string[] {
     try {
       const url = new URL(href, pageUrl);
       // Stay on the same domain, strip hash and query
-      if (url.hostname === new URL(BASE_URL).hostname) {
+      if (url.hostname === BASE_HOSTNAME) {
         url.hash = '';
         url.search = '';
         links.push(url.href.replace(/\/$/, ''));

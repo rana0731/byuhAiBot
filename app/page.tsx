@@ -14,6 +14,9 @@ type ConversationSummary = {
   updatedAt: string;
 };
 
+type AccessStep = 'entry' | 'login' | 'chat';
+type AccessRole = 'student-faculty' | 'guest' | null;
+
 const SUGGESTIONS = [
   'How do I apply as an international student?',
   'How do I connect to campus WiFi?',
@@ -49,6 +52,11 @@ function formatConversationDate(value: string) {
 }
 
 export default function Home() {
+  const [accessStep, setAccessStep] = useState<AccessStep>('entry');
+  const [accessRole, setAccessRole] = useState<AccessRole>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -266,6 +274,202 @@ export default function Home() {
     submitPrompt(input);
   }
 
+  async function enterAsGuest() {
+    setAccessRole('guest');
+    setLoginError('');
+
+    try {
+      await createConversation();
+    } catch (err) {
+      console.error(err);
+    }
+
+    setAccessStep('chat');
+  }
+
+  function enterStudentFacultyLogin() {
+    setAccessRole('student-faculty');
+    setLoginError('');
+    setAccessStep('login');
+  }
+
+  function returnToEntry() {
+    stop();
+    activeConversationIdRef.current = null;
+    setMessages([]);
+    setConversations([]);
+    setActiveConversationId(null);
+    setInput('');
+    setSidebarOpen(false);
+    setAccessRole(null);
+    setUsername('');
+    setPassword('');
+    setLoginError('');
+    setAccessStep('entry');
+  }
+
+  function handleFakeLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!username.trim() || !password.trim()) {
+      setLoginError('Enter a username and password to continue.');
+      return;
+    }
+
+    setLoginError('');
+    void createConversation().finally(() => {
+      setAccessStep('chat');
+    });
+  }
+
+  if (accessStep === 'entry') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(127,29,29,0.16),_transparent_40%),linear-gradient(180deg,_#f9f3eb_0%,_#f4ede1_100%)] px-4 py-10 text-slate-900 sm:px-6">
+        <section className="w-full max-w-5xl overflow-hidden rounded-[2.5rem] border border-white/60 bg-white/85 shadow-2xl shadow-slate-900/10 backdrop-blur">
+          <div className="grid gap-10 px-6 py-8 sm:px-10 sm:py-10 lg:grid-cols-[1.1fr_0.9fr] lg:px-12">
+            <div className="flex flex-col justify-between">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.32em] text-byuh-gold">
+                  BYUH AI Chatbot
+                </p>
+                <h1 className="mt-5 max-w-xl text-4xl font-semibold tracking-tight text-byuh-crimson sm:text-5xl">
+                  Welcome to the BYUH AI Chatbot
+                </h1>
+                <h2 className="mt-5 max-w-2xl text-2xl font-semibold tracking-tight text-slate-800 sm:text-3xl">
+                  Choose how you want to enter the assistant
+                </h2>
+              </div>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={enterStudentFacultyLogin}
+                  className="group rounded-[2rem] border border-byuh-crimson/20 bg-gradient-to-br from-byuh-crimson to-byuh-burgundy px-6 py-6 text-left text-white shadow-lg shadow-byuh-crimson/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-crimson/25"
+                >
+                  <h2 className="text-2xl font-semibold">Student / Faculty</h2>
+                  <p className="mt-3 text-sm leading-7 text-white/80">
+                    Continue to a temporary sign-in form, then move into the chatbot.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void enterAsGuest()}
+                  className="group rounded-[2rem] border border-byuh-burgundy/15 bg-[#fcf8f2] px-6 py-6 text-left text-byuh-crimson shadow-lg shadow-slate-900/5 transition hover:-translate-y-1 hover:border-byuh-burgundy/40 hover:bg-white hover:shadow-xl hover:shadow-byuh-burgundy/10"
+                >
+                  <h2 className="text-2xl font-semibold">Guest</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    Skip login for now and go straight to the chatbot start screen.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-[2rem] border border-byuh-burgundy/10 bg-[#fffaf5] p-6 shadow-inner shadow-byuh-burgundy/5 sm:p-8">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-byuh-gold">
+                Access Flow
+              </p>
+              <div className="mt-6 space-y-4 text-sm leading-7 text-slate-600">
+                <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
+                  <p className="font-semibold text-byuh-crimson">1. Pick a user type</p>
+                  <p className="mt-1">Choose between `Student / Faculty` or `Guest`.</p>
+                </div>
+                <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
+                  <p className="font-semibold text-byuh-crimson">2. Temporary login for campus users</p>
+                  <p className="mt-1">
+                    The student and faculty path uses a placeholder username and password form for
+                    now.
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
+                  <p className="font-semibold text-byuh-crimson">3. Start chatting</p>
+                  <p className="mt-1">
+                    After the gate, both paths land in the same chatbot experience.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (accessStep === 'login') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(127,29,29,0.16),_transparent_40%),linear-gradient(180deg,_#f9f3eb_0%,_#f4ede1_100%)] px-4 py-10 text-slate-900 sm:px-6">
+        <section className="w-full max-w-md rounded-[2.25rem] border border-white/60 bg-white/90 p-8 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-10">
+          <p className="text-sm font-semibold uppercase tracking-[0.32em] text-byuh-gold">
+            Student / Faculty Access
+          </p>
+          <h1 className="mt-4 text-3xl font-semibold text-byuh-crimson">Temporary Sign In</h1>
+          <p className="mt-3 text-sm leading-7 text-slate-600">
+            This is a placeholder login screen for now. Enter any username and password to continue
+            to the chatbot.
+          </p>
+
+          <form onSubmit={handleFakeLogin} className="mt-8 space-y-5">
+            <div>
+              <label
+                htmlFor="username"
+                className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500"
+              >
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-border bg-[#fcf8f2] px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-byuh-burgundy"
+                placeholder="Enter username"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="mt-2 w-full rounded-2xl border border-border bg-[#fcf8f2] px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-byuh-burgundy"
+                placeholder="Enter password"
+              />
+            </div>
+
+            {loginError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {loginError}
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={returnToEntry}
+                className="flex-1 rounded-2xl border border-byuh-burgundy/20 px-4 py-3 text-sm font-semibold text-byuh-crimson transition hover:bg-byuh-burgundy/5"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="flex-1 rounded-2xl bg-byuh-crimson px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-byuh-crimson/15 transition hover:bg-byuh-burgundy"
+              >
+                Log In
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-transparent text-foreground">
       <aside
@@ -399,19 +603,30 @@ export default function Home() {
               <div>
                 <h1 className="text-lg font-semibold">BYUH AI Chatbot</h1>
                 <p className="text-sm text-white/80">
-                  Ask about admissions, OIT, and other BYU-Hawaii information.
+                  {accessRole === 'guest'
+                    ? 'Guest access to admissions, OIT, and other BYU-Hawaii information.'
+                    : 'Student and faculty access to admissions, OIT, and other BYU-Hawaii information.'}
                 </p>
               </div>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void createConversation()}
-            className="hidden rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:bg-white/10 sm:inline-flex"
-          >
-            New chat
-          </button>
+          <div className="hidden items-center gap-3 sm:flex">
+            <button
+              type="button"
+              onClick={returnToEntry}
+              className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+            >
+              Switch access
+            </button>
+            <button
+              type="button"
+              onClick={() => void createConversation()}
+              className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
+            >
+              New chat
+            </button>
+          </div>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -427,7 +642,7 @@ export default function Home() {
                       Welcome
                     </p>
                     <h2 className="mt-3 text-3xl font-semibold text-byuh-crimson sm:text-4xl">
-                      Welcome to the BYUH AI Chatbot.
+                      Welcome to the BYUH AI Chatbot
                     </h2>
                     <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
                       Ask about admissions, campus technology, student resources, and other

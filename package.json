@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "ingest": "tsx scripts/ingest.ts",
-    "ingest:oit": "tsx scripts/ingest.ts https://oit.byuh.edu/",
+    "ingest:admissions": "tsx scripts/ingest.ts admissions",
+    "ingest:oit": "tsx scripts/ingest.ts oit",
     "embed": "tsx scripts/embed.ts"
   },
   "dependencies": {

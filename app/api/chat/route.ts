@@ -3,6 +3,7 @@ import { convertToModelMessages, embed, streamText } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { chunks, conversations, documents, messages } from '@/db/schema';
+import { getSourceLabel } from '@/lib/source-sites';
 
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY,
@@ -11,12 +12,6 @@ const gateway = createGateway({
 const EMBEDDING_MODEL = 'openai/text-embedding-3-small';
 const CHAT_MODEL = 'openai/gpt-4o-mini';
 const TOP_K = 5;
-
-function getSourceLabel(url: string) {
-  if (url.includes('oit.byuh.edu')) return 'OIT website';
-  if (url.includes('admissions.byuh.edu')) return 'Admissions website';
-  return 'BYU-Hawaii website';
-}
 
 export async function POST(req: Request) {
   const { messages: clientMessages, conversationId } = await req.json();

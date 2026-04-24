@@ -4,17 +4,17 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema';
+import { resolveSourceSite } from '../lib/source-sites';
 
 const { documents, chunks } = schema;
 
 const db = drizzle(new Pool({ connectionString: process.env.DATABASE_URL }), { schema });
 
-const DEFAULT_BASE_URL = 'https://admissions.byuh.edu';
 const CHUNK_SIZE = 1000; // characters per chunk
 const CHUNK_OVERLAP = 200;
 const CONCURRENCY = 3;
-const baseUrlInput = process.argv[2] || process.env.SCRAPE_BASE_URL || DEFAULT_BASE_URL;
-const BASE_URL = new URL(baseUrlInput).href.replace(/\/$/, '');
+const sourceSite = resolveSourceSite(process.argv[2] || process.env.SCRAPE_BASE_URL);
+const BASE_URL = sourceSite.baseUrl;
 const BASE_HOSTNAME = new URL(BASE_URL).hostname;
 
 // ── Text chunking ─────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { createGateway } from '@ai-sdk/gateway';
 import { convertToModelMessages, embed, streamText } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { chunks, conversations, documents, messages } from '@/db/schema';
+import { chunks, conversations, documents, liveChats, messages } from '@/db/schema';
 import { getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
 
 const gateway = createGateway({
@@ -55,6 +55,65 @@ export async function POST(req: Request) {
   const liveAgentSite = LIVE_AGENT_REGEX.test(userText)
     ? findLiveAgentSite(userText)
     : null;
+
+  if (LIVE_AGENT_REGEX.test(userText)) {
+    let convId: string = conversationId;
+
+    if (!convId) {
+      const [conversation] = await db
+        .insert(conversations)
+        .values({})
+        .returning({ id: conversations.id });
+      convId = conversation.id;
+    }
+
+    await db.insert(messages).values({
+      conversationId: convId,
+      role: 'user',
+      content: userText,
+    });
+
+    let responseText: string;
+    if (liveAgentSite) {
+      // Create live chat session
+      await db.insert(liveChats).values({
+        conversationId: convId,
+        siteKey: liveAgentSite.key,
+        status: 'pending',
+      });
+      responseText = `Connecting you to our ${liveAgentSite.label}. An agent will be with you shortly!`;
+    } else {
+      responseText = `I can help connect you with a live agent! Click the "Connect to Agent" button at the top of the page, then select which department you'd like to reach: Admissions, Financial Aid, or OIT.`;
+    }
+
+    await db.insert(messages).values({
+      conversationId: convId,
+      role: 'assistant',
+      content: responseText,
+    });
+
+    await db
+      .update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversations.id, convId));
+
+    return streamText({
+      model: gateway(CHAT_MODEL),
+      messages: [
+        {
+          role: 'user',
+          content: responseText,
+        },
+      ],
+      async onFinish() {
+        // already persisted
+      },
+    }).toUIMessageStreamResponse({
+      headers: {
+        'X-Conversation-Id': convId,
+      },
+    });
+  }
 
   const { embedding: queryEmbedding } = await embed({
     model: gateway.textEmbeddingModel(EMBEDDING_MODEL),

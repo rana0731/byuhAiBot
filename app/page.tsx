@@ -57,6 +57,7 @@ export default function Home() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showLiveAgentModal, setShowLiveAgentModal] = useState(false);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -305,6 +306,7 @@ export default function Home() {
     setUsername('');
     setPassword('');
     setLoginError('');
+    setShowLiveAgentModal(false);
     setAccessStep('entry');
   }
 
@@ -348,7 +350,7 @@ export default function Home() {
                 >
                   <h2 className="text-2xl font-semibold">Student / Faculty</h2>
                   <p className="mt-3 text-sm leading-7 text-white/80">
-                    Continue to a temporary sign-in form, then move into the chatbot.
+                    Sign in to access campus resources and support.
                   </p>
                 </button>
 
@@ -359,32 +361,31 @@ export default function Home() {
                 >
                   <h2 className="text-2xl font-semibold">Guest</h2>
                   <p className="mt-3 text-sm leading-7 text-slate-600">
-                    Skip login for now and go straight to the chatbot start screen.
+                    Browse without signing in or creating an account.
                   </p>
                 </button>
               </div>
             </div>
 
-            <div className="rounded-[2rem] border border-byuh-burgundy/10 bg-[#fffaf5] p-6 shadow-inner shadow-byuh-burgundy/5 sm:p-8">
+              <div className="rounded-[2rem] border border-byuh-burgundy/10 bg-[#fffaf5] p-6 shadow-inner shadow-byuh-burgundy/5 sm:p-8">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-byuh-gold">
                 Access Flow
               </p>
               <div className="mt-6 space-y-4 text-sm leading-7 text-slate-600">
                 <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
                   <p className="font-semibold text-byuh-crimson">1. Pick a user type</p>
-                  <p className="mt-1">Choose between `Student / Faculty` or `Guest`.</p>
+                  <p className="mt-1">Choose between Student/Faculty or Guest access.</p>
                 </div>
                 <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
-                  <p className="font-semibold text-byuh-crimson">2. Temporary login for campus users</p>
+                  <p className="font-semibold text-byuh-crimson">2. Login or get started</p>
                   <p className="mt-1">
-                    The student and faculty path uses a placeholder username and password form for
-                    now.
+                    Student/Faculty users sign in. Guests skip directly to the chatbot.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
-                  <p className="font-semibold text-byuh-crimson">3. Start chatting</p>
+                  <p className="font-semibold text-byuh-crimson">3. Chat and request live agent</p>
                   <p className="mt-1">
-                    After the gate, both paths land in the same chatbot experience.
+                    Chat with the AI, then request a live agent anytime for your department.
                   </p>
                 </div>
               </div>
@@ -614,6 +615,13 @@ export default function Home() {
           <div className="hidden items-center gap-3 sm:flex">
             <button
               type="button"
+              onClick={() => setShowLiveAgentModal(true)}
+              className="rounded-full border border-byuh-gold/40 bg-byuh-gold/10 px-4 py-2 text-sm font-semibold text-byuh-gold transition hover:bg-byuh-gold/20"
+            >
+              Connect to Agent
+            </button>
+            <button
+              type="button"
               onClick={returnToEntry}
               className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold transition hover:bg-white/10"
             >
@@ -749,6 +757,109 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {showLiveAgentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[2.25rem] border border-white/60 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur sm:p-8">
+            <div className="p-6 sm:p-0">
+              <p className="text-sm font-semibold uppercase tracking-[0.32em] text-byuh-gold">
+                Live Agent Support
+              </p>
+              <h2 className="mt-4 text-3xl font-semibold text-byuh-crimson">
+                Which department do you need help with?
+              </h2>
+              <p className="mt-2 text-slate-600">
+                Select your department and connect with a live agent.
+              </p>
+
+              <div className="mt-8 grid gap-4 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const response = await fetch('/api/live-chats', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        conversationId: activeConversationIdRef.current,
+                        siteKey: 'admissions',
+                      }),
+                    });
+                    if (response.ok) {
+                      setShowLiveAgentModal(false);
+                      const data = await response.json();
+                      await selectConversation(data.conversationId, { closeSidebar: false });
+                    }
+                  }}
+                  className="group rounded-[1.5rem] border border-byuh-crimson/20 bg-gradient-to-br from-byuh-crimson to-byuh-burgundy px-6 py-6 text-left text-white shadow-lg shadow-byuh-crimson/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-crimson/25"
+                >
+                  <h3 className="text-xl font-semibold">Admissions</h3>
+                  <p className="mt-2 text-sm leading-6 text-white/80">
+                    Application questions and admissions support.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const response = await fetch('/api/live-chats', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        conversationId: activeConversationIdRef.current,
+                        siteKey: 'financialaid',
+                      }),
+                    });
+                    if (response.ok) {
+                      setShowLiveAgentModal(false);
+                      const data = await response.json();
+                      await selectConversation(data.conversationId, { closeSidebar: false });
+                    }
+                  }}
+                  className="group rounded-[1.5rem] border border-byuh-burgundy/20 bg-gradient-to-br from-byuh-burgundy to-red-700 px-6 py-6 text-left text-white shadow-lg shadow-byuh-burgundy/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-burgundy/25"
+                >
+                  <h3 className="text-xl font-semibold">Financial Aid</h3>
+                  <p className="mt-2 text-sm leading-6 text-white/80">
+                    Scholarships, loans, and financial help.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const response = await fetch('/api/live-chats', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        conversationId: activeConversationIdRef.current,
+                        siteKey: 'oit',
+                      }),
+                    });
+                    if (response.ok) {
+                      setShowLiveAgentModal(false);
+                      const data = await response.json();
+                      await selectConversation(data.conversationId, { closeSidebar: false });
+                    }
+                  }}
+                  className="group rounded-[1.5rem] border border-byuh-navy/20 bg-gradient-to-br from-byuh-navy to-blue-900 px-6 py-6 text-left text-white shadow-lg shadow-byuh-navy/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-navy/25"
+                >
+                  <h3 className="text-xl font-semibold">OIT Support</h3>
+                  <p className="mt-2 text-sm leading-6 text-white/80">
+                    Technical and IT support.
+                  </p>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowLiveAgentModal(false)}
+                className="mt-8 px-4 py-2 text-byuh-crimson hover:text-byuh-burgundy font-semibold transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

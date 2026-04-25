@@ -51,6 +51,13 @@ export const messageRoleEnum = pgEnum('message_role', [
   'tool',
 ]);
 
+export const liveChatStatusEnum = pgEnum('live_chat_status', [
+  'pending',
+  'active',
+  'completed',
+  'cancelled',
+]);
+
 export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().defaultRandom(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -67,13 +74,33 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+export const liveChats = pgTable('live_chats', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id')
+    .notNull()
+    .references(() => conversations.id, { onDelete: 'cascade' }),
+  siteKey: text('site_key').notNull(),
+  status: liveChatStatusEnum('status').notNull().default('pending'),
+  adminId: uuid('admin_id'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const conversationsRelations = relations(conversations, ({ many }) => ({
   messages: many(messages),
+  liveChats: many(liveChats),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
   conversation: one(conversations, {
     fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+}));
+
+export const liveChatsRelations = relations(liveChats, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [liveChats.conversationId],
     references: [conversations.id],
   }),
 }));

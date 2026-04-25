@@ -3,11 +3,31 @@ import { convertToModelMessages, embed, streamText } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { chunks, conversations, documents, messages } from '@/db/schema';
-import { getSourceLabel } from '@/lib/source-sites';
+import { getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
 
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY,
 });
+
+const LIVE_AGENT_REGEX = /\b(live agent|contact.*agent|talk to (a )?live agent|connect.*agent|help from|support agent|agent support)\b/i;
+
+function findLiveAgentSite(userText: string) {
+  const normalized = userText.toLowerCase();
+
+  for (const site of LIVE_CHAT_PRIORITY_SITES) {
+    if (normalized.includes('admissions') && site.key === 'admissions') {
+      return site;
+    }
+    if ((normalized.includes('financial aid') || normalized.includes('financialaid')) && site.key === 'financialaid') {
+      return site;
+    }
+    if (normalized.includes('oit') && site.key === 'oit') {
+      return site;
+    }
+  }
+
+  return null;
+}
 
 const EMBEDDING_MODEL = 'openai/text-embedding-3-small';
 const CHAT_MODEL = 'openai/gpt-4o-mini';
@@ -31,6 +51,10 @@ export async function POST(req: Request) {
   if (!userText.trim()) {
     return new Response('Message cannot be empty.', { status: 400 });
   }
+
+  const liveAgentSite = LIVE_AGENT_REGEX.test(userText)
+    ? findLiveAgentSite(userText)
+    : null;
 
   const { embedding: queryEmbedding } = await embed({
     model: gateway.textEmbeddingModel(EMBEDDING_MODEL),
@@ -90,6 +114,9 @@ If the answer is not covered, say so honestly and suggest the student contact th
 Always end your answer with a markdown section titled "Sources".
 In that section, list the most relevant source URLs you used from the allowed sources below, preserving the website label.
 Do not invent or change source URLs, and do not cite sources outside the allowed list.
+
+If the user asks to contact a live agent, provide the user with the live chat options Admissions, Financial Aid, or OIT.
+When a specific site is named, answer using this exact pattern: "We contacting you to <Site Label>'s live agent." If no site is named, ask the user to choose one of those three.
 
 <allowed-sources>
 ${availableSources}

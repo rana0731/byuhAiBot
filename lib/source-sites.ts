@@ -11,11 +11,27 @@ export const SOURCE_SITES: SourceSite[] = [
     baseUrl: 'https://admissions.byuh.edu',
   },
   {
+    key: 'financialaid',
+    label: 'Financial aid website',
+    baseUrl: 'https://financialaid.byuh.edu',
+  },
+  {
+    key: 'housing',
+    label: 'Housing website',
+    baseUrl: 'https://housing.byuh.edu',
+  },
+  {
     key: 'oit',
     label: 'OIT website',
     baseUrl: 'https://oit.byuh.edu',
   },
 ];
+
+export const LIVE_CHAT_PRIORITY_KEYS = ['admissions', 'financialaid', 'oit'] as const;
+
+export const LIVE_CHAT_PRIORITY_SITES = SOURCE_SITES.filter((site) =>
+  LIVE_CHAT_PRIORITY_KEYS.includes(site.key as typeof LIVE_CHAT_PRIORITY_KEYS[number]),
+);
 
 export const DEFAULT_SOURCE_SITE = SOURCE_SITES[0];
 

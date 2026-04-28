@@ -63,6 +63,8 @@ export default function Home() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
+  const [departmentLoading, setDepartmentLoading] = useState<string | null>(null);
+  const [hasActiveLiveChat, setHasActiveLiveChat] = useState(false);
   const activeConversationIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -186,6 +188,41 @@ export default function Home() {
     );
   }, [activeConversationId, conversationPreview, conversationTitle]);
 
+  // Poll for new messages when there's an active live chat
+  useEffect(() => {
+    if (!activeConversationId || !hasActiveLiveChat) return;
+
+    let pollInterval: NodeJS.Timeout;
+    let isMounted = true;
+
+    async function pollForMessages() {
+      try {
+        const response = await fetch(`/api/conversations/${activeConversationId}`);
+        if (!response.ok || !isMounted) return;
+
+        const data = (await response.json()) as { messages: UIMessage[] };
+        if (isMounted) {
+          setMessages(data.messages);
+        }
+      } catch (err) {
+        console.error('Error polling for messages:', err);
+      }
+    }
+
+    // Poll immediately on mount
+    void pollForMessages();
+
+    // Then poll every 1 second for new messages
+    pollInterval = setInterval(() => {
+      void pollForMessages();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
+  }, [activeConversationId, hasActiveLiveChat]);
+
   async function selectConversation(
     conversationId: string,
     options: { closeSidebar?: boolean } = {},
@@ -226,6 +263,7 @@ export default function Home() {
     setActiveConversationId(conversation.id);
     setMessages([]);
     setInput('');
+    setHasActiveLiveChat(false);
 
     if (options.closeSidebar) {
       setSidebarOpen(false);
@@ -270,6 +308,27 @@ export default function Home() {
     setInput('');
   }
 
+  async function handleDepartmentSelect(siteKey: string) {
+    setDepartmentLoading(siteKey);
+    try {
+      const response = await fetch('/api/live-chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: activeConversationIdRef.current,
+          siteKey: siteKey,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setHasActiveLiveChat(true);
+        await selectConversation(data.conversationId, { closeSidebar: false });
+      }
+    } finally {
+      setDepartmentLoading(null);
+    }
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     submitPrompt(input);
@@ -307,6 +366,7 @@ export default function Home() {
     setPassword('');
     setLoginError('');
     setShowLiveAgentModal(false);
+    setHasActiveLiveChat(false);
     setAccessStep('entry');
   }
 
@@ -678,7 +738,8 @@ export default function Home() {
                   if (!text) return null;
 
                   const isUser = message.role === 'user';
-
+                  const showDepartments = !isUser && text.includes('[SHOW_DEPARTMENTS]');
+                  const displayText = text.replace(/\n*\[\s*SHOW_DEPARTMENTS\s*\]\n*/g, '').trim();
                   return (
                     <article
                       key={message.id}
@@ -695,8 +756,49 @@ export default function Home() {
                         {isUser ? (
                           <p className="whitespace-pre-wrap text-sm leading-7">{text}</p>
                         ) : (
-                          <div className="prose prose-sm max-w-none sm:prose-base">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+                          <div className="space-y-4">
+                            {displayText && (
+                              <div className="prose prose-sm max-w-none sm:prose-base">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{displayText}</ReactMarkdown>
+                              </div>
+                            )}
+                            {showDepartments && (
+                              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDepartmentSelect('admissions')}
+                                  disabled={departmentLoading !== null}
+                                  className="group rounded-[1rem] border border-byuh-crimson/20 bg-gradient-to-br from-byuh-crimson to-byuh-burgundy px-4 py-3 text-left text-white shadow-lg shadow-byuh-crimson/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-crimson/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <h3 className="text-sm font-semibold">{departmentLoading === 'admissions' ? 'Connecting...' : 'Admissions'}</h3>
+                                  <p className="mt-1 text-xs leading-5 text-white/80">
+                                    Application questions
+                                  </p>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDepartmentSelect('financialaid')}
+                                  disabled={departmentLoading !== null}
+                                  className="group rounded-[1rem] border border-byuh-burgundy/20 bg-gradient-to-br from-byuh-burgundy to-red-700 px-4 py-3 text-left text-white shadow-lg shadow-byuh-burgundy/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-burgundy/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <h3 className="text-sm font-semibold">{departmentLoading === 'financialaid' ? 'Connecting...' : 'Financial Aid'}</h3>
+                                  <p className="mt-1 text-xs leading-5 text-white/80">
+                                    Scholarships & loans
+                                  </p>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDepartmentSelect('oit')}
+                                  disabled={departmentLoading !== null}
+                                  className="group rounded-[1rem] border border-byuh-navy/20 bg-gradient-to-br from-byuh-navy to-blue-900 px-4 py-3 text-left text-white shadow-lg shadow-byuh-navy/20 transition hover:-translate-y-1 hover:shadow-xl hover:shadow-byuh-navy/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  <h3 className="text-sm font-semibold">{departmentLoading === 'oit' ? 'Connecting...' : 'OIT Support'}</h3>
+                                  <p className="mt-1 text-xs leading-5 text-white/80">
+                                    Technical support
+                                  </p>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

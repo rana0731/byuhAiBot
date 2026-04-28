@@ -1,6 +1,6 @@
 import { createGateway } from '@ai-sdk/gateway';
 import { convertToModelMessages, embed, streamText } from 'ai';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, or, and } from 'drizzle-orm';
 import { db } from '@/db';
 import { chunks, conversations, documents, liveChats, messages } from '@/db/schema';
 import { getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
@@ -9,7 +9,8 @@ const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY,
 });
 
-const LIVE_AGENT_REGEX = /\b(live agent|contact.*agent|talk to (a )?live agent|connect.*agent|help from|support agent|agent support)\b/i;
+const LIVE_AGENT_REGEX = /\b(live agent|contact.*agent|talk to (a )?live agent|connect.*agent|help from|support agent|agent support|live chat|contact live)\b/i;
+
 
 function findLiveAgentSite(userText: string) {
   const normalized = userText.toLowerCase();
@@ -83,7 +84,7 @@ export async function POST(req: Request) {
       });
       responseText = `Connecting you to our ${liveAgentSite.label}. An agent will be with you shortly!`;
     } else {
-      responseText = `I can help connect you with a live agent! Click the "Connect to Agent" button at the top of the page, then select which department you'd like to reach: Admissions, Financial Aid, or OIT.`;
+      responseText = `Please choose one of the following options to connect with a live chat agent: Admissions, Financial Aid, or OIT. Let me know which one you'd like!\n\n[SHOW_DEPARTMENTS]`;
     }
 
     await db.insert(messages).values({
@@ -96,23 +97,42 @@ export async function POST(req: Request) {
       .update(conversations)
       .set({ updatedAt: new Date() })
       .where(eq(conversations.id, convId));
-
-    return streamText({
-      model: gateway(CHAT_MODEL),
-      messages: [
-        {
-          role: 'user',
-          content: responseText,
+    // Return the pre-constructed response as a proper UI message stream
+    const encoder = new TextEncoder();
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          try {
+            // Send the message as a UI message stream event
+            const messageEvent = {
+            type: 'text-delta',
+            textDelta: responseText,
+          };
+            controller.enqueue(encoder.encode(`0:${JSON.stringify([messageEvent])}\n`));
+            
+            // Send final message event
+            const finalEvent = {
+              type: 'message-delta',
+              delta: { role: 'assistant', content: '' },
+            };
+            controller.enqueue(encoder.encode(`d:${JSON.stringify(finalEvent)}\n`));
+            
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
         },
-      ],
-      async onFinish() {
-        // already persisted
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Conversation-Id': convId,
+        },
       },
-    }).toUIMessageStreamResponse({
-      headers: {
-        'X-Conversation-Id': convId,
-      },
-    });
+    );
   }
 
   const { embedding: queryEmbedding } = await embed({
@@ -152,6 +172,60 @@ export async function POST(req: Request) {
       .values({})
       .returning({ id: conversations.id });
     convId = conversation.id;
+  }
+
+  // Check if there's an active live chat for this conversation
+  const activeLiveChat = await db.query.liveChats.findFirst({
+    where: (liveChats, { eq, and, or }) =>
+      and(
+        eq(liveChats.conversationId, convId),
+        or(
+          eq(liveChats.status, 'pending'),
+          eq(liveChats.status, 'active'),
+        ),
+      ),
+  });
+
+  // If there's an active live chat, don't use AI - just save the message
+  if (activeLiveChat) {
+    await db.insert(messages).values({
+      conversationId: convId,
+      role: 'user',
+      content: userText,
+    });
+
+    await db
+      .update(conversations)
+      .set({ updatedAt: new Date() })
+      .where(eq(conversations.id, convId));
+
+    // Return empty response - the agent will respond via the admin API
+    const encoder = new TextEncoder();
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          try {
+            const ackEvent = {
+              type: 'text-delta',
+              textDelta: '',
+            };
+            controller.enqueue(encoder.encode(`0:${JSON.stringify([ackEvent])}\n`));
+            controller.close();
+          } catch (error) {
+            controller.error(error);
+          }
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Conversation-Id': convId,
+        },
+      },
+    );
   }
 
   await db.insert(messages).values({

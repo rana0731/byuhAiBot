@@ -67,6 +67,7 @@ export default function Home() {
   const [hasActiveLiveChat, setHasActiveLiveChat] = useState(false);
   const activeConversationIdRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastMessageCountRef = useRef<number>(0);
 
   const [transport] = useState(
     () =>
@@ -99,6 +100,11 @@ export default function Home() {
   const isLoadingResponse = status === 'submitted' || status === 'streaming';
   const conversationTitle = useMemo(() => summarizeTitle(messages), [messages]);
   const conversationPreview = useMemo(() => summarizePreview(messages), [messages]);
+
+  // Track message count for polling
+  useEffect(() => {
+    lastMessageCountRef.current = messages.length;
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,7 +196,7 @@ export default function Home() {
 
   // Poll for new messages when there's an active live chat
   useEffect(() => {
-    if (!activeConversationId || !hasActiveLiveChat) return;
+    if (!activeConversationId) return;
 
     let pollInterval: NodeJS.Timeout;
     let isMounted = true;
@@ -201,8 +207,12 @@ export default function Home() {
         if (!response.ok || !isMounted) return;
 
         const data = (await response.json()) as { messages: UIMessage[] };
-        if (isMounted) {
-          setMessages(data.messages);
+        if (isMounted && data.messages) {
+          // Update if message count changed (new message received)
+          if (data.messages.length !== lastMessageCountRef.current) {
+            lastMessageCountRef.current = data.messages.length;
+            setMessages(data.messages);
+          }
         }
       } catch (err) {
         console.error('Error polling for messages:', err);
@@ -212,16 +222,16 @@ export default function Home() {
     // Poll immediately on mount
     void pollForMessages();
 
-    // Then poll every 1 second for new messages
+    // Then poll every 500ms for new messages (more aggressive)
     pollInterval = setInterval(() => {
       void pollForMessages();
-    }, 1000);
+    }, 500);
 
     return () => {
       isMounted = false;
       clearInterval(pollInterval);
     };
-  }, [activeConversationId, hasActiveLiveChat]);
+  }, [activeConversationId]);
 
   async function selectConversation(
     conversationId: string,

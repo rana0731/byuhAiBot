@@ -24,7 +24,49 @@ export default function AdminPage() {
 
   useEffect(() => {
     loadLiveChats();
+    
+    // Poll for new live chats every 2 seconds
+    const chatInterval = setInterval(() => {
+      void loadLiveChats();
+    }, 2000);
+
+    return () => clearInterval(chatInterval);
   }, []);
+
+  // Poll for new messages when a chat is selected
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    let messageInterval: NodeJS.Timeout;
+    let isMounted = true;
+
+    async function pollForMessages() {
+      try {
+        const response = await fetch(`/api/conversations/${selectedChat.conversationId}`);
+        if (!response.ok || !isMounted) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setMessages(data.messages);
+        }
+      } catch (error) {
+        console.error('Error polling for messages:', error);
+      }
+    }
+
+    // Poll immediately on mount
+    void pollForMessages();
+
+    // Then poll every 1 second for new messages
+    messageInterval = setInterval(() => {
+      void pollForMessages();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(messageInterval);
+    };
+  }, [selectedChat]);
 
   const loadLiveChats = async () => {
     try {
@@ -239,13 +281,13 @@ export default function AdminPage() {
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.role === 'user' ? 'justify-start' : 'justify-end'}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
                         message.role === 'user'
-                          ? 'bg-gradient-to-br from-byuh-crimson to-byuh-burgundy text-white shadow-md'
-                          : 'bg-byuh-gold/10 text-byuh-crimson border border-byuh-gold/20 shadow-sm'
+                          ? 'bg-byuh-gold/10 text-byuh-crimson border border-byuh-gold/20 shadow-sm'
+                          : 'bg-gradient-to-br from-byuh-crimson to-byuh-burgundy text-white shadow-md'
                       }`}
                     >
                       <p className="text-sm leading-relaxed">{message.parts?.[0]?.text || message.content}</p>

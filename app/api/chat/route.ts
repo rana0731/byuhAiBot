@@ -11,7 +11,6 @@ const gateway = createGateway({
 
 const LIVE_ADMIN_REGEX = /\b(live admin|contact.*admin|talk to (a )?live admin|connect.*admin|help from|admin support|live chat|contact live)\b/i;
 const APPLY_TO_BYUH_REGEX = /\b(i want to apply|how (do|can) i apply|apply (to|for|at)|start (an|my) application|submit (an|my) application|admissions application)\b/i;
-const OFFICIAL_APPLICATION_URL = 'https://apply.byuh.edu/';
 const LOCAL_APPLICATION_PATH = '/apply';
 
 type ApplyAdmissionInput = {
@@ -69,14 +68,9 @@ function createApplyAdmissionUrl(input: ApplyAdmissionInput = {}) {
 function createApplyAdmissionResponse(input: ApplyAdmissionInput = {}) {
   const applyUrl = createApplyAdmissionUrl(input);
 
-  return `I can start your BYU-Hawaii admission application here:
+  return `I can start your BYU-Hawaii admission application right here. Review the details${input.name || input.email ? ' I found' : ''}, add anything missing, then continue when you are ready.
 
-${applyUrl}
-
-That page will show a prefilled form${input.name || input.email ? ' with the details I found' : ''}. After you review and submit it, the app will continue to the official BYU-Hawaii application system.
-
-## Sources
-- BYU-Hawaii application: ${OFFICIAL_APPLICATION_URL}`;
+[SHOW_APPLY_ACTION:${applyUrl}]`;
 }
 
 const applyAdmissionTool = tool({
@@ -347,7 +341,7 @@ For casual replies, clarifying questions, live admin routing, or answers that do
 
 If the user asks to contact a live admin, provide the user with the live chat options Admissions, Financial Aid, or OIT.
 When a specific site is named, answer using this exact pattern: "We are connecting you to <Site Label>'s live admin." If no site is named, ask the user to choose one of those three.
-If the user asks to apply to BYU-Hawaii, start an application, or submit an admissions application, use the applyAdmission tool. Use the tool result message in your response. Do not treat applying for admission as a request to contact a live admin unless they explicitly ask for a live admin or a person.
+If the user asks to apply to BYU-Hawaii, start an application, or submit an admissions application, use the applyAdmission tool. Use the tool result message exactly in your response. Do not treat applying for admission as a request to contact a live admin unless they explicitly ask for a live admin or a person.
 
 <allowed-sources>
 ${availableSources}

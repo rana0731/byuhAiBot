@@ -2,7 +2,7 @@
 
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, UIMessage, isTextUIPart } from 'ai';
-import { Menu, MessageSquarePlus, PanelLeftClose, Send, Trash2 } from 'lucide-react';
+import { ArrowRight, FileInput, Menu, MessageSquarePlus, PanelLeftClose, Send, Trash2 } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -49,6 +49,13 @@ function formatConversationDate(value: string) {
     month: 'short',
     day: 'numeric',
   }).format(new Date(value));
+}
+
+function getApplyActionUrl(text: string) {
+  const match = text.match(/\[\s*SHOW_APPLY_ACTION:([^\]]+)\s*\]/);
+  const url = match?.[1]?.trim();
+
+  return url?.startsWith('/apply') ? url : null;
 }
 
 export default function Home() {
@@ -748,7 +755,11 @@ export default function Home() {
 
                   const isUser = message.role === 'user';
                   const showDepartments = !isUser && text.includes('[SHOW_DEPARTMENTS]');
-                  const displayText = text.replace(/\n*\[\s*SHOW_DEPARTMENTS\s*\]\n*/g, '').trim();
+                  const applyActionUrl = !isUser ? getApplyActionUrl(text) : null;
+                  const displayText = text
+                    .replace(/\n*\[\s*SHOW_DEPARTMENTS\s*\]\n*/g, '')
+                    .replace(/\n*\[\s*SHOW_APPLY_ACTION:[^\]]+\]\n*/g, '')
+                    .trim();
                   return (
                     <article
                       key={message.id}
@@ -806,6 +817,32 @@ export default function Home() {
                                     Technical support
                                   </p>
                                 </button>
+                              </div>
+                            )}
+                            {applyActionUrl && (
+                              <div className="mt-4 rounded-lg border border-byuh-crimson/15 bg-[#fffaf5] p-4">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex items-start gap-3">
+                                    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-byuh-crimson text-white">
+                                      <FileInput className="size-5" />
+                                    </span>
+                                    <div>
+                                      <h3 className="text-sm font-semibold text-byuh-crimson">
+                                        Admission application
+                                      </h3>
+                                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                                        Open a prefilled form and continue when your details look right.
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <a
+                                    href={applyActionUrl}
+                                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-byuh-crimson px-4 py-2 text-sm font-semibold text-white transition hover:bg-byuh-burgundy"
+                                  >
+                                    Start application
+                                    <ArrowRight className="size-4" />
+                                  </a>
+                                </div>
                               </div>
                             )}
                           </div>

@@ -1,5 +1,5 @@
 import { createGateway } from '@ai-sdk/gateway';
-import { convertToModelMessages, embed, streamText } from 'ai';
+import { convertToModelMessages, embed, jsonSchema, stepCountIs, streamText, tool } from 'ai';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { chunks, conversations, documents, liveChats, messages } from '@/db/schema';
@@ -10,6 +10,14 @@ const gateway = createGateway({
 });
 
 const LIVE_ADMIN_REGEX = /\b(live admin|contact.*admin|talk to (a )?live admin|connect.*admin|help from|admin support|live chat|contact live)\b/i;
+const APPLY_TO_BYUH_REGEX = /\b(i want to apply|how (do|can) i apply|apply (to|for|at)|start (an|my) application|submit (an|my) application|admissions application)\b/i;
+const OFFICIAL_APPLICATION_URL = 'https://apply.byuh.edu/';
+const LOCAL_APPLICATION_PATH = '/apply';
+
+type ApplyAdmissionInput = {
+  name?: string;
+  email?: string;
+};
 
 
 function findLiveAdminSite(userText: string) {
@@ -28,6 +36,141 @@ function findLiveAdminSite(userText: string) {
   }
 
   return null;
+}
+
+function extractApplyAdmissionPrefill(userText: string): ApplyAdmissionInput {
+  const email = userText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+  const name =
+    userText.match(/\b(?:my name is|i am|i'm)\s+([a-z][a-z\s'-]{1,60})(?:\s+and|\s*,|\.|$)/i)?.[1]
+      ?.trim();
+
+  return {
+    ...(name ? { name } : {}),
+    ...(email ? { email } : {}),
+  };
+}
+
+function createApplyAdmissionUrl(input: ApplyAdmissionInput = {}) {
+  const params = new URLSearchParams();
+
+  if (input.name?.trim()) {
+    params.set('name', input.name.trim());
+  }
+
+  if (input.email?.trim()) {
+    params.set('email', input.email.trim());
+  }
+
+  const query = params.toString();
+
+  return query ? `${LOCAL_APPLICATION_PATH}?${query}` : LOCAL_APPLICATION_PATH;
+}
+
+function createApplyAdmissionResponse(input: ApplyAdmissionInput = {}) {
+  const applyUrl = createApplyAdmissionUrl(input);
+
+  return `I can start your BYU-Hawaii admission application here:
+
+${applyUrl}
+
+That page will show a prefilled form${input.name || input.email ? ' with the details I found' : ''}. After you review and submit it, the app will continue to the official BYU-Hawaii application system.
+
+## Sources
+- BYU-Hawaii application: ${OFFICIAL_APPLICATION_URL}`;
+}
+
+const applyAdmissionTool = tool({
+  description: 'Start the BYU-Hawaii admission application process with optional prefilled applicant details.',
+  inputSchema: jsonSchema<ApplyAdmissionInput>({
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Applicant full name, if the user provided it.',
+      },
+      email: {
+        type: 'string',
+        description: 'Applicant email address, if the user provided it.',
+      },
+    },
+    additionalProperties: false,
+  }),
+  execute: async ({ name, email }) => {
+    const redirectUrl = createApplyAdmissionUrl({ name, email });
+
+    return {
+      redirectUrl,
+      message: createApplyAdmissionResponse({ name, email }),
+    };
+  },
+});
+
+function createTextStreamResponse(responseText: string, convId: string) {
+  const encoder = new TextEncoder();
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        try {
+          const messageEvent = {
+            type: 'text-delta',
+            textDelta: responseText,
+          };
+          controller.enqueue(encoder.encode(`0:${JSON.stringify([messageEvent])}\n`));
+
+          const finalEvent = {
+            type: 'message-delta',
+            delta: { role: 'assistant', content: '' },
+          };
+          controller.enqueue(encoder.encode(`d:${JSON.stringify(finalEvent)}\n`));
+
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        }
+      },
+    }),
+    {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Conversation-Id': convId,
+      },
+    },
+  );
+}
+
+async function saveStaticExchange(userText: string, responseText: string, conversationId?: string) {
+  let convId: string = conversationId ?? '';
+
+  if (!convId) {
+    const [conversation] = await db
+      .insert(conversations)
+      .values({})
+      .returning({ id: conversations.id });
+    convId = conversation.id;
+  }
+
+  await db.insert(messages).values({
+    conversationId: convId,
+    role: 'user',
+    content: userText,
+  });
+
+  await db.insert(messages).values({
+    conversationId: convId,
+    role: 'assistant',
+    content: responseText,
+  });
+
+  await db
+    .update(conversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(conversations.id, convId));
+
+  return convId;
 }
 
 const EMBEDDING_MODEL = 'openai/text-embedding-3-small';
@@ -53,86 +196,35 @@ export async function POST(req: Request) {
     return new Response('Message cannot be empty.', { status: 400 });
   }
 
-  const liveAdminSite = LIVE_ADMIN_REGEX.test(userText)
-    ? findLiveAdminSite(userText)
-    : null;
+  if (APPLY_TO_BYUH_REGEX.test(userText) && !LIVE_ADMIN_REGEX.test(userText)) {
+    const responseText = createApplyAdmissionResponse(extractApplyAdmissionPrefill(userText));
+    const convId = await saveStaticExchange(userText, responseText, conversationId);
+
+    return createTextStreamResponse(responseText, convId);
+  }
 
   if (LIVE_ADMIN_REGEX.test(userText)) {
-    let convId: string = conversationId;
-
-    if (!convId) {
-      const [conversation] = await db
-        .insert(conversations)
-        .values({})
-        .returning({ id: conversations.id });
-      convId = conversation.id;
-    }
-
-    await db.insert(messages).values({
-      conversationId: convId,
-      role: 'user',
-      content: userText,
-    });
-
+    const liveAdminSite = findLiveAdminSite(userText);
     let responseText: string;
+
     if (liveAdminSite) {
+      responseText = `You are connected to the ${getDepartmentLabel(liveAdminSite.key)} department live admin. An admin will be with you shortly.`;
+      const convId = await saveStaticExchange(userText, responseText, conversationId);
+
       // Create live chat session
       await db.insert(liveChats).values({
         conversationId: convId,
         siteKey: liveAdminSite.key,
         status: 'pending',
       });
-      responseText = `You are connected to the ${getDepartmentLabel(liveAdminSite.key)} department live admin. An admin will be with you shortly.`;
-    } else {
-      responseText = `Please choose one of the following options to connect with a live admin: Admissions, Financial Aid, or OIT. Let me know which one you'd like!\n\n[SHOW_DEPARTMENTS]`;
+
+      return createTextStreamResponse(responseText, convId);
     }
 
-    await db.insert(messages).values({
-      conversationId: convId,
-      role: 'assistant',
-      content: responseText,
-    });
+    responseText = `Please choose one of the following options to connect with a live admin: Admissions, Financial Aid, or OIT. Let me know which one you'd like!\n\n[SHOW_DEPARTMENTS]`;
+    const convId = await saveStaticExchange(userText, responseText, conversationId);
 
-    await db
-      .update(conversations)
-      .set({ updatedAt: new Date() })
-      .where(eq(conversations.id, convId));
-    // Return the pre-constructed response as a proper UI message stream
-    const encoder = new TextEncoder();
-    return new Response(
-      new ReadableStream({
-        async start(controller) {
-          try {
-            // Send the message as a UI message stream event
-            const messageEvent = {
-            type: 'text-delta',
-            textDelta: responseText,
-          };
-            controller.enqueue(encoder.encode(`0:${JSON.stringify([messageEvent])}\n`));
-            
-            // Send final message event
-            const finalEvent = {
-              type: 'message-delta',
-              delta: { role: 'assistant', content: '' },
-            };
-            controller.enqueue(encoder.encode(`d:${JSON.stringify(finalEvent)}\n`));
-            
-            controller.close();
-          } catch (error) {
-            controller.error(error);
-          }
-        },
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'X-Conversation-Id': convId,
-        },
-      },
-    );
+    return createTextStreamResponse(responseText, convId);
   }
 
   const { embedding: queryEmbedding } = await embed({
@@ -241,15 +333,21 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: gateway(CHAT_MODEL),
+    tools: {
+      applyAdmission: applyAdmissionTool,
+    },
+    stopWhen: stepCountIs(2),
     system: `You are a helpful BYU-Hawaii assistant.
 Answer questions using only the context below.
 If the answer is not covered, say so honestly and suggest the student contact the relevant BYU-Hawaii office.
-Always end your answer with a markdown section titled "Sources".
-In that section, list the most relevant source URLs you used from the allowed sources below, preserving the website label.
+Only include a markdown section titled "Sources" when you used source context for a factual answer or when you recommend a specific URL/resource.
+When you include "Sources", list only the most relevant source URLs from the allowed sources below, preserving the website label.
 Do not invent or change source URLs, and do not cite sources outside the allowed list.
+For casual replies, clarifying questions, live admin routing, or answers that do not need a source, omit the "Sources" section.
 
 If the user asks to contact a live admin, provide the user with the live chat options Admissions, Financial Aid, or OIT.
 When a specific site is named, answer using this exact pattern: "We are connecting you to <Site Label>'s live admin." If no site is named, ask the user to choose one of those three.
+If the user asks to apply to BYU-Hawaii, start an application, or submit an admissions application, use the applyAdmission tool. Use the tool result message in your response. Do not treat applying for admission as a request to contact a live admin unless they explicitly ask for a live admin or a person.
 
 <allowed-sources>
 ${availableSources}

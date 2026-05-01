@@ -153,14 +153,14 @@ export default function BackendAdminPage() {
                               Apply for admission
                             </h4>
                             <p className="mt-1 text-sm text-slate-600">
-                              Redirects students to the admissions application and passes known chat details as prefill values.
+                              Opens a prefilled local application form before continuing to the official system.
                             </p>
                           </div>
                         </div>
                       </div>
 
                       <a
-                        href="https://admissions.byuh.edu/apply"
+                        href="/apply"
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-byuh-crimson px-4 py-2 text-sm font-semibold text-white transition hover:bg-byuh-burgundy"
@@ -177,7 +177,7 @@ export default function BackendAdminPage() {
                           Redirect URL
                         </div>
                         <p className="mt-3 break-all rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
-                          https://admissions.byuh.edu/apply
+                          /apply?name=&email=
                         </p>
                       </div>
 
@@ -219,7 +219,7 @@ export default function BackendAdminPage() {
                     When a student wants to apply for admission, collect missing basics first.
                   </p>
                   <p className="rounded-lg bg-slate-50 p-3">
-                    If enough details are known, send the student to the admissions application.
+                    If enough details are known, prefill the local application form.
                   </p>
                   <p className="rounded-lg bg-slate-50 p-3">
                     Include prefill values only from conversation or authenticated profile data.

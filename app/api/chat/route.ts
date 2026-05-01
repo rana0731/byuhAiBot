@@ -1,18 +1,18 @@
 import { createGateway } from '@ai-sdk/gateway';
 import { convertToModelMessages, embed, streamText } from 'ai';
-import { eq, sql, or, and } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { chunks, conversations, documents, liveChats, messages } from '@/db/schema';
-import { getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
+import { getDepartmentLabel, getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
 
 const gateway = createGateway({
   apiKey: process.env.AI_GATEWAY_API_KEY,
 });
 
-const LIVE_AGENT_REGEX = /\b(live agent|contact.*agent|talk to (a )?live agent|connect.*agent|help from|support agent|agent support|live chat|contact live)\b/i;
+const LIVE_ADMIN_REGEX = /\b(live admin|contact.*admin|talk to (a )?live admin|connect.*admin|help from|admin support|live chat|contact live)\b/i;
 
 
-function findLiveAgentSite(userText: string) {
+function findLiveAdminSite(userText: string) {
   const normalized = userText.toLowerCase();
 
   for (const site of LIVE_CHAT_PRIORITY_SITES) {
@@ -53,11 +53,11 @@ export async function POST(req: Request) {
     return new Response('Message cannot be empty.', { status: 400 });
   }
 
-  const liveAgentSite = LIVE_AGENT_REGEX.test(userText)
-    ? findLiveAgentSite(userText)
+  const liveAdminSite = LIVE_ADMIN_REGEX.test(userText)
+    ? findLiveAdminSite(userText)
     : null;
 
-  if (LIVE_AGENT_REGEX.test(userText)) {
+  if (LIVE_ADMIN_REGEX.test(userText)) {
     let convId: string = conversationId;
 
     if (!convId) {
@@ -75,16 +75,16 @@ export async function POST(req: Request) {
     });
 
     let responseText: string;
-    if (liveAgentSite) {
+    if (liveAdminSite) {
       // Create live chat session
       await db.insert(liveChats).values({
         conversationId: convId,
-        siteKey: liveAgentSite.key,
+        siteKey: liveAdminSite.key,
         status: 'pending',
       });
-      responseText = `Connecting you to our ${liveAgentSite.label}. An agent will be with you shortly!`;
+      responseText = `You are connected to the ${getDepartmentLabel(liveAdminSite.key)} department live admin. An admin will be with you shortly.`;
     } else {
-      responseText = `Please choose one of the following options to connect with a live chat agent: Admissions, Financial Aid, or OIT. Let me know which one you'd like!\n\n[SHOW_DEPARTMENTS]`;
+      responseText = `Please choose one of the following options to connect with a live admin: Admissions, Financial Aid, or OIT. Let me know which one you'd like!\n\n[SHOW_DEPARTMENTS]`;
     }
 
     await db.insert(messages).values({
@@ -199,7 +199,7 @@ export async function POST(req: Request) {
       .set({ updatedAt: new Date() })
       .where(eq(conversations.id, convId));
 
-    // Return empty response - the agent will respond via the admin API
+    // Return empty response - the admin will respond via the admin API
     const encoder = new TextEncoder();
     return new Response(
       new ReadableStream({
@@ -248,8 +248,8 @@ Always end your answer with a markdown section titled "Sources".
 In that section, list the most relevant source URLs you used from the allowed sources below, preserving the website label.
 Do not invent or change source URLs, and do not cite sources outside the allowed list.
 
-If the user asks to contact a live agent, provide the user with the live chat options Admissions, Financial Aid, or OIT.
-When a specific site is named, answer using this exact pattern: "We contacting you to <Site Label>'s live agent." If no site is named, ask the user to choose one of those three.
+If the user asks to contact a live admin, provide the user with the live chat options Admissions, Financial Aid, or OIT.
+When a specific site is named, answer using this exact pattern: "We are connecting you to <Site Label>'s live admin." If no site is named, ask the user to choose one of those three.
 
 <allowed-sources>
 ${availableSources}

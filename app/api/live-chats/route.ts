@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { conversations, liveChats, messages } from '@/db/schema';
-import { getSourceLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
+import { getDepartmentLabel, LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
 
 export async function POST(req: Request) {
   const { conversationId, siteKey } = await req.json();
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
   await db.insert(messages).values({
     conversationId: convId,
     role: 'assistant',
-    content: `You've been connected to our ${getSourceLabel(siteKey)} department. An agent will be with you shortly.`,
+    content: `You are connected to the ${getDepartmentLabel(siteKey)} department live admin. An admin will be with you shortly.`,
   });
 
   return Response.json({

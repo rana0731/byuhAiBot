@@ -57,7 +57,7 @@ export default function Home() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [showLiveAgentModal, setShowLiveAgentModal] = useState(false);
+  const [showLiveAdminModal, setShowLiveAdminModal] = useState(false);
   const [input, setInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -198,7 +198,6 @@ export default function Home() {
   useEffect(() => {
     if (!activeConversationId) return;
 
-    let pollInterval: NodeJS.Timeout;
     let isMounted = true;
 
     async function pollForMessages() {
@@ -223,7 +222,7 @@ export default function Home() {
     void pollForMessages();
 
     // Then poll every 500ms for new messages (more aggressive)
-    pollInterval = setInterval(() => {
+    const pollInterval = setInterval(() => {
       void pollForMessages();
     }, 500);
 
@@ -375,7 +374,7 @@ export default function Home() {
     setUsername('');
     setPassword('');
     setLoginError('');
-    setShowLiveAgentModal(false);
+    setShowLiveAdminModal(false);
     setHasActiveLiveChat(false);
     setAccessStep('entry');
   }
@@ -453,9 +452,9 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="rounded-2xl border border-byuh-burgundy/10 bg-white px-4 py-4">
-                  <p className="font-semibold text-byuh-crimson">3. Chat and request live agent</p>
+                  <p className="font-semibold text-byuh-crimson">3. Chat and request live admin</p>
                   <p className="mt-1">
-                    Chat with the AI, then request a live agent anytime for your department.
+                    Chat with the AI, then request a live admin anytime for your department.
                   </p>
                 </div>
               </div>
@@ -685,10 +684,10 @@ export default function Home() {
           <div className="hidden items-center gap-3 sm:flex">
             <button
               type="button"
-              onClick={() => setShowLiveAgentModal(true)}
+              onClick={() => setShowLiveAdminModal(true)}
               className="rounded-full border border-byuh-gold/40 bg-byuh-gold/10 px-4 py-2 text-sm font-semibold text-byuh-gold transition hover:bg-byuh-gold/20"
             >
-              Connect to Agent
+              Connect to Admin
             </button>
             <button
               type="button"
@@ -870,18 +869,18 @@ export default function Home() {
         </div>
       </main>
 
-      {showLiveAgentModal && (
+      {showLiveAdminModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur">
           <div className="w-full max-w-2xl overflow-hidden rounded-[2.25rem] border border-white/60 bg-white/95 shadow-2xl shadow-slate-900/20 backdrop-blur sm:p-8">
             <div className="p-6 sm:p-0">
               <p className="text-sm font-semibold uppercase tracking-[0.32em] text-byuh-gold">
-                Live Agent Support
+                Live Admin Support
               </p>
               <h2 className="mt-4 text-3xl font-semibold text-byuh-crimson">
                 Which department do you need help with?
               </h2>
               <p className="mt-2 text-slate-600">
-                Select your department and connect with a live agent.
+                Select your department and connect with a live admin.
               </p>
 
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
@@ -897,7 +896,7 @@ export default function Home() {
                       }),
                     });
                     if (response.ok) {
-                      setShowLiveAgentModal(false);
+                      setShowLiveAdminModal(false);
                       const data = await response.json();
                       await selectConversation(data.conversationId, { closeSidebar: false });
                     }
@@ -922,7 +921,7 @@ export default function Home() {
                       }),
                     });
                     if (response.ok) {
-                      setShowLiveAgentModal(false);
+                      setShowLiveAdminModal(false);
                       const data = await response.json();
                       await selectConversation(data.conversationId, { closeSidebar: false });
                     }
@@ -947,7 +946,7 @@ export default function Home() {
                       }),
                     });
                     if (response.ok) {
-                      setShowLiveAgentModal(false);
+                      setShowLiveAdminModal(false);
                       const data = await response.json();
                       await selectConversation(data.conversationId, { closeSidebar: false });
                     }
@@ -963,7 +962,7 @@ export default function Home() {
 
               <button
                 type="button"
-                onClick={() => setShowLiveAgentModal(false)}
+                onClick={() => setShowLiveAdminModal(false)}
                 className="mt-8 px-4 py-2 text-byuh-crimson hover:text-byuh-burgundy font-semibold transition"
               >
                 Cancel

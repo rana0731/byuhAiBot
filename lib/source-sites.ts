@@ -43,6 +43,19 @@ export function getSourceSiteByKey(key: string) {
   return SOURCE_SITES.find((site) => site.key === key);
 }
 
+export function getDepartmentLabel(key: string) {
+  switch (key) {
+    case 'admissions':
+      return 'Admissions';
+    case 'financialaid':
+      return 'Financial Aid';
+    case 'oit':
+      return 'OIT';
+    default:
+      return getSourceSiteByKey(key)?.label.replace(/\s+website$/i, '') ?? key;
+  }
+}
+
 export function resolveSourceSite(input?: string | null) {
   if (!input) {
     return DEFAULT_SOURCE_SITE;

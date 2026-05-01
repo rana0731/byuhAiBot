@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LIVE_CHAT_PRIORITY_SITES } from '@/lib/source-sites';
 
 type LiveChat = {
   id: string;
@@ -21,6 +22,7 @@ export default function AdminPage() {
   const [selectedChat, setSelectedChat] = useState<LiveChat | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [response, setResponse] = useState('');
+  const [selectedSite, setSelectedSite] = useState<string | null>(null);
 
   useEffect(() => {
     loadLiveChats();
@@ -163,6 +165,10 @@ export default function AdminPage() {
     );
   }
 
+  const filteredChats = selectedSite
+    ? liveChats.filter(chat => chat.siteKey === selectedSite)
+    : liveChats;
+
   return (
     <div className="flex h-screen bg-[linear-gradient(180deg,_#f9f3eb_0%,_#f4ede1_100%)]">
       {/* Sidebar */}
@@ -170,17 +176,36 @@ export default function AdminPage() {
         <div className="p-6 border-b border-byuh-burgundy/10 bg-gradient-to-br from-white to-byuh-gold/5">
           <h1 className="text-2xl font-semibold text-byuh-crimson">Live Chat Admin</h1>
           <p className="text-sm text-byuh-crimson/70 mt-2">
-            <span className="font-semibold">{liveChats.filter(c => c.status === 'pending').length}</span> pending • <span className="font-semibold">{liveChats.filter(c => c.status === 'active').length}</span> active
+            <span className="font-semibold">{filteredChats.filter(c => c.status === 'pending').length}</span> pending • <span className="font-semibold">{filteredChats.filter(c => c.status === 'active').length}</span> active
           </p>
+          
+          {/* Department Filter Dropdown */}
+          <div className="mt-4">
+            <label className="text-xs font-semibold text-byuh-crimson/70 block mb-2">
+              Filter by Department
+            </label>
+            <select
+              value={selectedSite || ''}
+              onChange={(e) => setSelectedSite(e.target.value || null)}
+              className="w-full px-3 py-2 border border-byuh-burgundy/20 rounded-lg bg-white text-byuh-crimson text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-byuh-crimson/50 hover:border-byuh-crimson/30 transition"
+            >
+              <option value="">All Departments</option>
+              {LIVE_CHAT_PRIORITY_SITES.map((site) => (
+                <option key={site.key} value={site.key}>
+                  {site.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {liveChats.length === 0 ? (
+          {filteredChats.length === 0 ? (
             <div className="p-6 text-center text-byuh-crimson/70">
               <p className="text-sm">No live chats at the moment</p>
             </div>
           ) : (
-            liveChats.map((chat) => (
+            filteredChats.map((chat) => (
               <div
                 key={chat.id}
                 className={`p-4 border-b border-byuh-burgundy/5 cursor-pointer transition hover:bg-byuh-gold/5 ${
